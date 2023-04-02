@@ -1,0 +1,9 @@
+-cp src/game
+
+-lib heaps
+-lib hscript
+-lib deepnightLibs
+-lib ldtk-haxe-api
+-main Boot
+
+-D vsync=true

@@ -1,0 +1,6 @@
+_base.hxml
+
+-hl bin/client.hl
+-lib hlsdl
+
+--cmd hl bin/client.hl
