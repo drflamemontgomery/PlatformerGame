@@ -40,7 +40,10 @@ class PlayerSprite extends node.Sprite {
     state = Run;
   }
 
-  public function setState( state : PlayerState ) {
+  var loop : Bool = true;
+
+  public function setState( state : PlayerState, loop : Bool = true ) {
+    this.loop = true;
     this.state = state;
     switch(state) {
       case Idle:
@@ -85,9 +88,11 @@ class PlayerSprite extends node.Sprite {
   function updateImage(dt:Float) {
     cur_time += dt;
     if(cur_time < 0.05) { return; }
-    cur_time -= 0.05;
-    frame++;
-    frame %= getFrameLength();
+    while(cur_time > 0.05) {
+      cur_time -= 0.05;
+      frame++;
+    }
+    frame = Std.int(loop ? (frame % getFrameLength()) : Math.min(frame, getFrameLength()));
 
     tex = cur_texture.sub(32*frame, 0, 32, 32);
     tex.setCenterRatio(0.5, 1.0);
@@ -118,6 +123,12 @@ class Player extends node.CharacterBody {
   var stateHandler : PlayerStateHandler;
   public var sprite : PlayerSprite;
 
+  public var jumps = 2;
+
+  public final RUN_SPEED = 4;
+  public final GRAVITY = 20;
+  public final JUMP_SPEED = 10;
+
   public function new(?parent : node.Node, x:Int, y:Int) {
     super(parent, x, y);
     
@@ -131,13 +142,20 @@ class Player extends node.CharacterBody {
     stateHandler = new PlayerStateHandler(this);
   }
 
+  public function run() {
+    dx = 0;
+    if(hxd.Key.isDown(hxd.Key.LEFT)) {
+      dx -= RUN_SPEED;
+    }
+    if(hxd.Key.isDown(hxd.Key.RIGHT)) {
+      dx += RUN_SPEED;
+    }
+  }
+
   override function update( dt : Float ) {
     super.update(dt);
     stateHandler.update(dt);
-    if( hxd.Key.isPressed(hxd.Key.UP)) {
-      dy = -6;
-    }
-    dy += dt * 20;
+    dy += dt * GRAVITY;
   }
 }
 
@@ -183,6 +201,7 @@ class IdleState extends State {
   }
 
   override function enter() {
+    player.jumps = 2;
     player.sprite.setState(Idle);
   }
 
@@ -195,6 +214,11 @@ class IdleState extends State {
       dir += 1;
     }
 
+    if( hxd.Key.isPressed(hxd.Key.UP)) {
+      return Jump;
+    }
+    
+    if(player.dy > 0.0) { return Fall; }
     if(dir != 0) { return Run; }
     return null;
   }
@@ -207,17 +231,17 @@ class RunState extends State {
 
   override function enter() {
     player.sprite.setState(Run);
+    player.jumps = 2;
   }
 
   override function update(dt:Float) : Null<PlayerState> {
-    player.dx = 0;
-    if(hxd.Key.isDown(hxd.Key.LEFT)) {
-      player.dx -= 10;
-    }
-    if(hxd.Key.isDown(hxd.Key.RIGHT)) {
-      player.dx += 10;
+    player.run();
+
+    if( hxd.Key.isPressed(hxd.Key.UP)) {
+      return Jump;
     }
 
+    if(player.dy > 0.0) { return Fall; }
     if(player.dx == 0) { return Idle; }
     
     return null;
@@ -234,11 +258,72 @@ class FallState extends State {
   public function new(?handler : PlayerStateHandler) {
     super(handler);
   }
+
+  var can_jump : Bool = false;
+
+  override function enter() {
+    player.jumps = Std.int(Math.min(player.jumps, 1));
+    player.sprite.setState(Fall);
+  }
+
+  override function update(dt : Float) {
+    player.run();
+
+    if(player.jumps > 0 && hxd.Key.isPressed(hxd.Key.UP)) {
+      return Double_Jump;
+    }
+
+    if(player.dy == 0.0) {
+      return player.dx == 0 ? Idle : Run;
+    }
+
+    player.dy += 15.0 * dt;
+    return null;
+  }
 }
   
 class JumpState extends State {
   public function new(?handler : PlayerStateHandler) {
     super(handler);
+  }
+
+  var time : Float = 0.0;
+  var j_dy : Float = 0.0;
+
+  override function enter() {
+    time = 0.0;
+    j_dy = 0.0;
+    player.jumps -= 1;
+    player.dy = -player.JUMP_SPEED;
+    player.sprite.setState(Jump);
+  }
+
+  function getJumpVelocity(dt : Float) : Float {
+    if(time < 0.4) {
+      return Math.min(-player.GRAVITY * dt, -player.JUMP_SPEED + 25*time - player.GRAVITY * dt);
+    }
+    return 0.01;
+    
+  }
+
+  override function update(dt : Float) {
+    player.run();
+    time += dt;
+    if(player.jumps > 0 && hxd.Key.isPressed(hxd.Key.UP)) {
+      return Double_Jump;
+    }
+
+    if(!hxd.Key.isDown(hxd.Key.UP)) {
+      player.dy += 15.0 * dt;
+    } else {
+      player.dy = getJumpVelocity(dt);
+    }
+
+    if(player.dy > 0.0) {
+      return Fall;
+    }
+
+    return null;
   }
 }
   
@@ -251,6 +336,21 @@ class WallJumpState extends State {
 class DoubleJumpState extends State {
   public function new(?handler : PlayerStateHandler) {
     super(handler);
+  }
+
+  override function enter() {
+    player.jumps -= 1;
+    player.dy = -player.JUMP_SPEED;
+    player.sprite.setState(Double_Jump, false);
+  }
+
+  override function update(dt : Float) {
+    player.run();
+
+    if(player.dy > 0.0) {
+      return Fall;
+    }
+    return null;
   }
 }
   
