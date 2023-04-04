@@ -1,11 +1,10 @@
 package en;
 
-class TestObj extends GameObject {
+class TestObj extends node.Node {
 
-  var image : h2d.Bitmap;
   var spr : node.Sprite;
 
-  public function new( ?parent : GameObject ) {
+  public function new( ?parent : node.Node ) {
     super(parent);
 
     var t = h2d.Tile.fromColor(0xFF0000, 32, 64, 1.);

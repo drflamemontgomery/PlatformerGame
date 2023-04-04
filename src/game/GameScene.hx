@@ -6,10 +6,18 @@ package;
 class GameScene extends h2d.Scene {
 
   var physics : phy.PhysicsManager;
-  
+
+  public var GRID(get, never) : Int;
+ 
+  function get_GRID() {
+    return 32;
+  }
+
   // LDTK Level Data
   public var cWid(default, null): Int = 0;
   public var cHei(default, null): Int = 0;
+
+  public var tw : dn.Tweenie;
 
   public var world_data(default, null) : World.World_Level;  
   var tilesetSource : h2d.Tile;
@@ -53,8 +61,8 @@ class GameScene extends h2d.Scene {
     cWid = world_data.l_Collisions.cWid;
     trace(cWid);
     cHei = world_data.l_Collisions.cHei;
-    //tilesetSource = hxd.Res.levels.testTiles.toTile();
-    tilesetSource = hxd.Res.levels.testTiles.toTile();
+
+    tilesetSource = hxd.Res.levels.terrain.toTile();
 
     marks = new dn.MarkerMap(cWid, cHei);
     for(cy in 0...cHei)
@@ -64,6 +72,7 @@ class GameScene extends h2d.Scene {
     }
     
     var tg = new h2d.TileGroup(tilesetSource, this);
+    tg.scaleX = tg.scaleY = 1.0;
 
     var layer = world_data.l_Collisions;
     for(autoTile in layer.autoTiles) {
@@ -86,6 +95,8 @@ class GameScene extends h2d.Scene {
     initLevel();
     initPhysics();
     initRoot();
+
+    tw = new dn.Tweenie(30);
   }
 
 
